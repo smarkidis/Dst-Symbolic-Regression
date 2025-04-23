@@ -1,4 +1,4 @@
-# Dst-Symbolic-Regression
+# Symbolic Regression with PySR to Discover the Governing Equation for Geomagnetic Storm Dynamics (Dst Evolution)
 Repository with data and codes used for the paper "Discovering Governing Equations of Geomagnetic Storm Dynamics with Symbolic Regression"."
 
 The repository includes:
