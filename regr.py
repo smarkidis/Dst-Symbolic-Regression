@@ -4,6 +4,19 @@ import random
 import os
 from pysr import PySRRegressor
 
+import sympy.parsing.sympy_parser as spp
+# Override the parser to bypass conversion and avoid the error
+original_parse_expr = spp.parse_expr
+spp.parse_expr = lambda code, local_dict=None, transformations=None, evaluate=False: code
+
+import pysr.export as export_module
+export_module.add_export_formats = lambda equations, search_output, export_formats=None: equations
+
+import pysr.export_sympy as export_sympy
+export_sympy.pysr2sympy = lambda equation: equation
+
+
+
 # Define ANSI escape codes for red bold text.
 RED_BOLD = "\033[1;31m"
 RESET = "\033[0m"
@@ -17,7 +30,7 @@ file_path = "Cleaned_NASA_OMNI_Dataset.csv"
 df = pd.read_csv(file_path)
 
 df["DATE"] = pd.to_datetime(df["DATE"])
-df = df[(df["DATE"] >= "1995-01-01") & (df["DATE"] <= "2021-5-31")]
+df = df[(df["DATE"] >= "1995-01-01") & (df["DATE"] <= "2021-5-31")] #2021
 
 # List the columns you want to ensure have no NaN values
 columns_to_fill = [
@@ -101,7 +114,7 @@ for sim in range(1, 101):
     model = PySRRegressor(
         niterations=1000,
         populations=populations_value,
-        binary_operators=["+", "-", "*", "/", "greater", "max", "min"],
+        binary_operators=["+", "-", "*", "/","greater","max", "min"],
         unary_operators=["sqrt", "square", "sign"],
         elementwise_loss="L1DistLoss()",
         parsimony=parsimony_value,
@@ -110,8 +123,11 @@ for sim in range(1, 101):
         denoise=False,
         progress=True,  # Set to True if you want to see progress.
         maxsize=50,
-        timeout_in_seconds=3600
+        timeout_in_seconds=3600,
+        output_directory=None
     )
+    
+    model.sympy = lambda: model.equations_["equation"].iloc[0]
     
     # Fit the model on your training data.
     model.fit(X, y, variable_names=["DST", "Ey", "P_dyn", "P_B"])
@@ -119,8 +135,13 @@ for sim in range(1, 101):
     # Extract the discovered equations as a DataFrame.
     eq_df = model.equations_.copy()
     
-    # Filter to include only equations with a maximum complexity of 18.
-    eq_df = eq_df[eq_df['complexity'] <= 18].copy()
+    # Drop any columns that require Sympy conversion (e.g. "sympy_expression")
+    #for col in list(eq_df.columns):
+    #    if "sympy" in col.lower():
+    #        eq_df = eq_df.drop(columns=[col])
+    
+    # Filter to include only equations with a maximum complexity of 30.
+    eq_df = eq_df[eq_df['complexity'] <= 30].copy()
     
     # Record the simulation parameters and simulation number.
     eq_df['simulation'] = sim
@@ -140,4 +161,4 @@ for sim in range(1, 101):
     # Write the updated results to file.
     global_results.to_csv(results_file, index=False)
     
-    print(f"{RED_BOLD} Simulation {sim} complete. Global results updated in '{results_file}'. {RESET} \n", flush=True)
+    print(f"{RED_BOLD} Simulation {sim} complete. Global results updated in '{results_file}'. {RESET}\n", flush=True)
